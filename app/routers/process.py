@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.models import SessionLocal
 from app.db.crud import get_queued_tasks, update_task_status
 from app.services.video_processing import process_video_for_dyslexia
+from app.services.handwriting_processing import process_handwriting_for_dyslexia
 
 router = APIRouter(prefix="/process", tags=["Task Processing"])
 
@@ -27,8 +28,18 @@ async def process_tasks(db: Session = Depends(get_db)):
             # Mark task as processing
             update_task_status(db, task.id, "processing")
 
-            # Process the video (eye-tracking logic)
-            result = process_video_for_dyslexia(task.video_path)
+            # Initialize result
+            result = {}
+
+            # Process the video if the path exists
+            if task.video_path:
+                video_result = process_video_for_dyslexia(task.video_path)
+                result['video_analysis'] = video_result
+
+            # Process handwriting if the path exists
+            if task.handwriting_image_path:
+                handwriting_result = process_handwriting_for_dyslexia(task.handwriting_image_path)
+                result['handwriting_analysis'] = handwriting_result
 
             # Mark task as completed with results
             update_task_status(db, task.id, "completed", result=str(result))
