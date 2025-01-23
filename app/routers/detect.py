@@ -73,6 +73,7 @@ async def detect(
         user_id=user_id,
         video_path=video_path,
         audio_path=audio_path,
+        handwriting_image_path=handwriting_image_path,
     )
 
     # Add background task for video processing if video is provided

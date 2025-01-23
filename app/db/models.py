@@ -15,6 +15,7 @@ class Task(Base):
     user_id = Column(String, index=True)
     video_path = Column(String)
     audio_path = Column(String)
+    handwriting_image_path = Column(String)
     status = Column(String, default="queued")  # queued, processing, completed, failed
     result = Column(String, nullable=True)
 
