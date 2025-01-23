@@ -26,6 +26,7 @@ async def list_tasks(db: Session = Depends(get_db)):
                 "user_id": task.user_id,
                 "video_path": task.video_path,
                 "audio_path": task.audio_path,
+                "handwriting_image_path": task.handwriting_image_path,
                 "status": task.status,
                 "result": task.result,
             }
