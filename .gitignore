@@ -18,3 +18,5 @@ venv
 
 # Data
 app/data/*
+
+myenv
