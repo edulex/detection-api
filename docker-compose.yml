@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/app/data # Persist runtime data
+    environment:
+      - DATABASE_URL=sqlite:///./data/database.db # SQLite database path
+
+volumes:
+  app_data:
+    driver: local
