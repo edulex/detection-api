@@ -1,16 +1,20 @@
 from fastapi import FastAPI
 from app.routers import detect, queue, process
+from app.routers import handwriting
 
 app = FastAPI(
     title="Dyslexia Detection API",
     description="API for detecting dyslexia using video, audio, and questionnaires.",
     version="1.0.0"
 )
+from app.routers import handwriting
+
 
 # Include routers
 app.include_router(detect.router)
 app.include_router(queue.router)
 app.include_router(process.router)
+app.include_router(handwriting.router)
 
 @app.get("/")
 async def root():
