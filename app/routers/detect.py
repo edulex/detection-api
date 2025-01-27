@@ -174,3 +174,44 @@ def process_video(user_id: str, video_path: str = None, audio_path: str = None):
     return assessment_result
 
 
+@router.post("/")
+async def detect(
+    user_id: str = Form(...),
+    video: UploadFile = File(None),
+    handwriting_image: UploadFile = File(None),
+    phonetics_text: str = Form(...),  # Accept phonetics text as form data
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint for detecting dyslexia. Accepts video, handwriting image, and phonetics text.
+    """
+    if not video:
+        raise HTTPException(status_code=400, detail="Video file is required for processing.")
+
+    # Create user directory
+    user_dir = os.path.join(BASE_DIR, user_id)
+    os.makedirs(user_dir, exist_ok=True)
+
+    # Initialize file paths
+    video_path = os.path.join(user_dir, video.filename)
+    with open(video_path, "wb") as buffer:
+        shutil.copyfileobj(video.file, buffer)
+
+    # Save task in the database
+    task = create_task(
+        db=db,
+        user_id=user_id,
+        video_path=video_path,
+    )
+
+    # Add background task for processing video and phonetics
+    if background_tasks:
+        background_tasks.add_task(process_video_and_phonetics, video_path, phonetics_text)
+
+    return {
+        "message": "Processing started!",
+        "user_id": user_id,
+        "video_path": video_path,
+        "phonetics_text": phonetics_text,
+    }

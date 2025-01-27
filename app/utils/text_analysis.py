@@ -60,3 +60,25 @@ def levenshtein(s1: str, s2: str) -> int:
             current_row.append(min(insertions, deletions, substitutions))
         previous_row = current_row
     return previous_row[-1]
+
+
+
+def percentage_of_phonetic_accuraccy(extracted_text: str) -> float:
+    """
+    Calculate phonetic accuracy using Soundex, Metaphone, Caverphone, and NYSIIS.
+    """
+    soundex = Soundex()
+    metaphone = Metaphone()
+    caverphone = Caverphone()
+    nysiis = NYSIIS()
+    spell_corrected = TextBlob(extracted_text).correct()
+
+    phonetics_scores = []
+
+    for encoding in [soundex, metaphone, caverphone, nysiis]:
+        original = " ".join([encoding.encode(word) for word in extracted_text.split()])
+        corrected = " ".join([encoding.encode(word) for word in spell_corrected.split()])
+        score = (len(original) - levenshtein(original, corrected)) / (len(original) + 1)
+        phonetics_scores.append(score)
+
+    return sum(phonetics_scores) / len(phonetics_scores) * 100
