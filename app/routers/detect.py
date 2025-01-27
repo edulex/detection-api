@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException,
 from app.utils.assesment_logic import cumulative_assessment, normalize_score
 import os
 import shutil
-from moviepy.video.io.VideoFileClip import VideoFileClip
+from moviepy import VideoFileClip
 from app.services.queue_handler import add_task_to_queue
 from sqlalchemy.orm import Session
 from fastapi import Depends
