@@ -1,6 +1,10 @@
 import cv2
+import tempfile
+import pyttsx3
 import pytesseract
 from textblob import TextBlob
+import speech_recognition as sr
+
 from abydos.phonetic import Soundex, Metaphone, Caverphone, NYSIIS
 
 def extract_text_from_image(image_path: str) -> str:
