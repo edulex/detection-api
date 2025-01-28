@@ -4,6 +4,8 @@ from app.db.models import SessionLocal
 from app.db.crud import get_queued_tasks, update_task_status
 from app.services.video_processing import process_video_for_dyslexia
 from app.services.handwriting_processing import process_handwriting_for_dyslexia
+from app.utils.phonetics_analysis import analyze_phonetics  # Assuming phonetics logic is here
+import os
 
 router = APIRouter(prefix="/process", tags=["Task Processing"])
 
@@ -33,8 +35,18 @@ async def process_tasks(db: Session = Depends(get_db)):
 
             # Process the video if the path exists
             if task.video_path:
+                # Process video for dyslexia (e.g., eye-tracking analysis)
                 video_result = process_video_for_dyslexia(task.video_path)
                 result['video_analysis'] = video_result
+
+                # Perform phonetics analysis on the extracted audio
+                if task.audio_path and os.path.exists(task.audio_path):
+                    phonetics_result = analyze_phonetics(
+                        user_id=task.user_id,
+                        recorded_audio_path=task.audio_path,
+                        level=1  # Example difficulty level, can be parameterized
+                    )
+                    result['phonetics_analysis'] = phonetics_result
 
             # Process handwriting if the path exists
             if task.handwriting_image_path:
