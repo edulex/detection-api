@@ -40,6 +40,12 @@ async def detect(
     Endpoint for detecting dyslexia. Accepts video and/or handwriting image.
     If no files are provided, uses random scores for testing purposes.
     """
+    # dump all the request parameters
+    print(f"User ID: {user_id}")
+    print(f"Video: {video}")
+    print(f"Handwriting Image: {handwriting_image}")
+    
+    
     # Check if neither video nor handwriting image is provided
     if not video and not handwriting_image:
         # Generate random scores and directly return the assessment
