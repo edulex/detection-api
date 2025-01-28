@@ -1,6 +1,8 @@
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Form
 from app.utils.assesment_logic import cumulative_assessment, normalize_score
 import os
+import tempfile
+import pyttsx3
 import shutil
 from moviepy import VideoFileClip
 from app.services.queue_handler import add_task_to_queue
@@ -9,6 +11,8 @@ from fastapi import Depends
 from app.db.models import SessionLocal
 from app.db.crud import create_task
 import random
+import speech_recognition as sr
+import eng_to_ipa as ipa
 
 router = APIRouter(prefix="/detect", tags=["Detection"])
 
@@ -36,6 +40,12 @@ async def detect(
     Endpoint for detecting dyslexia. Accepts video and/or handwriting image.
     If no files are provided, uses random scores for testing purposes.
     """
+    # dump all the request parameters
+    print(f"User ID: {user_id}")
+    print(f"Video: {video}")
+    print(f"Handwriting Image: {handwriting_image}")
+    
+    
     # Check if neither video nor handwriting image is provided
     if not video and not handwriting_image:
         # Generate random scores and directly return the assessment
@@ -174,3 +184,144 @@ def process_video(user_id: str, video_path: str = None, audio_path: str = None):
     return assessment_result
 
 
+@router.post("/")
+async def detect(
+    user_id: str = Form(...),
+    video: UploadFile = File(None),
+    handwriting_image: UploadFile = File(None),
+    phonetics_text: str = Form(...),  # Accept phonetics text as form data
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint for detecting dyslexia. Accepts video, handwriting image, and phonetics text.
+    """
+    if not video:
+        raise HTTPException(status_code=400, detail="Video file is required for processing.")
+
+    # Create user directory
+    user_dir = os.path.join(BASE_DIR, user_id)
+    os.makedirs(user_dir, exist_ok=True)
+
+    # Initialize file paths
+    video_path = os.path.join(user_dir, video.filename)
+    with open(video_path, "wb") as buffer:
+        shutil.copyfileobj(video.file, buffer)
+
+    # Save task in the database
+    task = create_task(
+        db=db,
+        user_id=user_id,
+        video_path=video_path,
+    )
+
+    # Add background task for processing video and phonetics
+    if background_tasks:
+        background_tasks.add_task(process_video_and_phonetics, video_path, phonetics_text)
+
+    return {
+        "message": "Processing started!",
+        "user_id": user_id,
+        "video_path": video_path,
+        "phonetics_text": phonetics_text,
+    }
+
+
+#-----------------------------------------------------------------
+# PHONETICS ENDPOINT
+#-----------------------------------------------------------------
+@router.post("/phonetics/")
+async def analyze_phonetics(
+    user_id: str = Form(...),
+    recorded_audio: UploadFile = File(...),
+    level: int = Form(1)
+):
+    """
+    Analyze the user's pronunciation by comparing it to a predefined set of words.
+    Returns a phonetics inaccuracy score (lower is better).
+    """
+    try:
+        # Temporarily save the uploaded audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_audio_file:
+            tmp_audio_file.write(recorded_audio.file.read())
+            audio_path = tmp_audio_file.name
+
+        # Sample sets of words by level
+        level_vocabulary = {
+            1: ["fish", "dog", "cat", "orange", "apple"],
+            2: ["banana", "elephant", "dinosaur", "pineapple", "strawberry"],
+        }
+        vocabulary = level_vocabulary.get(level, level_vocabulary[1])
+        test_words = vocabulary[:5]
+
+        # OPTIONAL: Use text-to-speech in a separate thread so it doesn't conflict
+        speak_in_thread(test_words)
+
+        # Recognize the user's pronunciation from the audio sample
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(audio_path) as source:
+            audio = recognizer.record(source)
+            user_pronounced = recognizer.recognize_google(audio)
+
+        # Convert words to IPA
+        original_phonetics = " ".join([ipa.convert(word) for word in test_words])
+        user_phonetics = ipa.convert(user_pronounced)
+
+        # Calculate phonetics inaccuracy using Levenshtein distance
+        distance = levenshtein(original_phonetics, user_phonetics)
+        phonetics_inaccuracy = distance / max(len(original_phonetics), 1)
+
+        # Cleanup
+        os.remove(audio_path)
+
+        return {
+            "user_id": user_id,
+            "test_words": test_words,
+            "user_pronounced": user_pronounced,
+            "phonetics_inaccuracy": round(phonetics_inaccuracy * 100, 2),  # as percentage
+        }
+
+    except sr.UnknownValueError:
+        raise HTTPException(status_code=400, detail="Could not understand the audio.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing phonetics: {str(e)}")
+
+
+import threading
+import pyttsx3
+
+def speak_text(text: str):
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 150)
+    engine.say(text)
+    engine.runAndWait()
+
+def speak_in_thread(text: str):
+    # Run TTS in a separate thread so it doesn't block or conflict with the event loop
+    tts_thread = threading.Thread(target=speak_text, args=(text,))
+    tts_thread.start()
+
+
+#-----------------------------------------------------------------
+# HELPER: Levenshtein Distance
+#-----------------------------------------------------------------
+def levenshtein(s1: str, s2: str) -> int:
+    """
+    Compute the Levenshtein distance between two strings.
+    """
+    if len(s1) < len(s2):
+        return levenshtein(s2, s1)
+    if not s2:
+        return len(s1)
+
+    prev_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        curr_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = prev_row[j + 1] + 1
+            deletions = curr_row[j] + 1
+            substitutions = prev_row[j] + (c1 != c2)
+            curr_row.append(min(insertions, deletions, substitutions))
+        prev_row = curr_row
+
+    return prev_row[-1]

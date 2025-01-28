@@ -3,6 +3,8 @@ import numpy as np
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 from sklearn.preprocessing import StandardScaler
+# Import necessary functions for phonetics accuracy
+from app.utils.text_analysis import percentage_of_phonetic_accuraccy, spelling_accuracy
 
 # Load the trained model
 model = load_model("app/models/dyslexia_detection_model.h5")
