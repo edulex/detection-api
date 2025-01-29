@@ -29,6 +29,7 @@ async def analyze_handwriting(file: UploadFile):
         return {
             "handwriting_features": handwriting_features,
             "text_analysis": analysis_results,
+            
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
