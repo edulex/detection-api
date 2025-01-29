@@ -106,7 +106,7 @@ async def process_tasks(db: Session = Depends(get_db)):
 
             # Process phonetics using extracted audio
             if task.audio_path:
-                test_words = ["fish", "dog", "cat", "orange", "apple"]  # Default test words
+                test_words = ["The", "cat", "is", "on", "the", "mat", "The", "dog", "runs", "fast", "Look", "at", "the", "ball", "Can", "you", "find", "all", "star"]  # Default test words
                 phonetics_result = process_audio_for_phonetics(task.audio_path, test_words)
                 result["phonetics_analysis"] = phonetics_result
 
